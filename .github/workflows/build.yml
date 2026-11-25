@@ -8,7 +8,7 @@ on:
       - '**'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows:
@@ -28,12 +28,12 @@ jobs:
       - name: Build Windows installers
         run: npm run build
 
-      - name: Upload Windows installers
-        uses: actions/upload-artifact@v4
+      - name: Publish direct EXE downloads
+        uses: softprops/action-gh-release@v2
         with:
-          name: Netlify-MC-Windows
-          path: |
+          tag_name: netlify-mc-build-${{ github.run_number }}
+          name: Netlify MC Windows Build ${{ github.run_number }}
+          draft: false
+          prerelease: true
+          files: |
             dist/*.exe
-            dist/*.blockmap
-          if-no-files-found: error
-          retention-days: 14
