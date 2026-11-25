@@ -40,12 +40,31 @@
             "x64"
           ]
         }
+      ],
+      "publish": [
+        {
+          "provider": "github",
+          "owner": "netlifynetwork",
+          "repo": "netlifylauncher",
+          "releaseType": "prerelease"
+        }
       ]
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "netlifynetwork",
+        "repo": "netlifylauncher",
+        "releaseType": "prerelease"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
   }
 }
