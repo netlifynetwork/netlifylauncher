@@ -1,4 +1,4 @@
-name: Build Netlify MC
+name: Build Netlify MC (Windows)
 
 on:
   workflow_dispatch:
@@ -11,12 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  windows:
+    runs-on: windows-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -29,12 +25,15 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build desktop app
+      - name: Build Windows installers
         run: npm run build
 
-      - name: Upload installers
+      - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: netlify-mc-${{ matrix.os }}
-          path: dist/*
+          name: Netlify-MC-Windows
+          path: |
+            dist/*.exe
+            dist/*.blockmap
           if-no-files-found: error
+          retention-days: 14
