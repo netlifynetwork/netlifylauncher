@@ -22,13 +22,21 @@ jobs:
         with:
           node-version: 20
 
+      - name: Set release version
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $package.version = "0.1.$env:GITHUB_RUN_NUMBER"
+          $package | ConvertTo-Json -Depth 100 | Set-Content package.json
+          Write-Host "Building Netlify MC version $($package.version)"
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build Windows installers
+      - name: Build Windows installers and update metadata
         run: npm run build
 
-      - name: Publish direct EXE downloads
+      - name: Publish update files and direct EXE downloads
         uses: softprops/action-gh-release@v2
         with:
           tag_name: netlify-mc-build-${{ github.run_number }}
@@ -37,3 +45,5 @@ jobs:
           prerelease: true
           files: |
             dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
