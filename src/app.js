@@ -13,3 +13,51 @@ function settings(){modal.innerHTML='<div class="settings-overlay"><div class="s
 function toast(s){const t=document.createElement("div");t.className="toast";t.textContent=s;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
 function render(){document.querySelectorAll(".nav[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));if(state.page==="home")home();else if(state.page==="library")library();else if(state.page==="settings")settings();else{main.innerHTML='<div class="page-head"><div><h1>'+({discover:"Discover",skins:"Skins & Capes",instances:"Your Library"}[state.page]||"Netlify MC")+'</h1><div class="sub">Manage your Minecraft experience</div></div></div><div class="empty">This section is coming soon. Your launcher shell is ready.</div>';rightSide()}}
 document.querySelectorAll(".nav[data-page]").forEach(b=>b.onclick=()=>{state.page=b.dataset.page;render()});document.getElementById("addInstance").onclick=()=>{state.page="instances";render()};document.getElementById("closeApp").onclick=()=>window.close();document.addEventListener("click",e=>{const b=e.target.closest("[data-page]");if(b&&b.dataset.page){state.page=b.dataset.page;render()}const install=e.target.closest("[data-install]");if(install)toast("Modpack installer is not wired up yet.")});render();
+
+// In-app update notifications. Updates are downloaded only after the user chooses Update now.
+(function setupInAppUpdates() {
+  const root = document.getElementById("updateRoot");
+  if (!window.netlify?.updater || !root) return;
+  let updateInfo = null;
+  let downloaded = false;
+  function show(title, message, actions) {
+    root.innerHTML = '<section class="update-notice"><div class="update-kicker">NETLIFY MC UPDATE</div><h2>'+esc(title)+'</h2><p>'+esc(message)+'</p><div class="update-actions">'+actions+'</div></section>';
+  }
+  function showAvailable(info) {
+    updateInfo = info;
+    downloaded = false;
+    show("A new version is ready", "Netlify MC "+info.version+" is available. Update now or choose Later to be reminded in 30 minutes.",
+      '<button class="update-primary" id="updateNow">Update now</button><button class="update-later" id="updateLater">Later (30 min)</button>');
+    document.getElementById("updateNow").onclick = async () => {
+      show("Downloading update…", "Preparing Netlify MC "+info.version+". Keep the launcher open while it downloads.",
+        '<div class="update-progress"><span id="updateProgressBar"></span></div><b id="updateProgressText">Starting download…</b>');
+      const result = await window.netlify.updater.download();
+      if (!result?.ok) show("Update could not start", result?.message || "Please try again later.", '<button class="update-later" id="updateDismiss">Close</button>');
+      document.getElementById("updateDismiss")?.addEventListener("click", () => root.innerHTML = "");
+    };
+    document.getElementById("updateLater").onclick = async () => {
+      await window.netlify.updater.snooze();
+      root.innerHTML = "";
+      toast("We'll remind you about this update in 30 minutes.");
+    };
+  }
+  window.netlify.updater.on("updater:available", showAvailable);
+  window.netlify.updater.on("updater:checking", () => {});
+  window.netlify.updater.on("updater:progress", progress => {
+    const bar = document.getElementById("updateProgressBar");
+    const label = document.getElementById("updateProgressText");
+    if (bar) bar.style.width = progress.percent+"%";
+    if (label) label.textContent = progress.percent+"% downloaded";
+  });
+  window.netlify.updater.on("updater:downloaded", info => {
+    downloaded = true;
+    show("Update downloaded", "Netlify MC "+info.version+" is ready. Restart the launcher to install it.",
+      '<button class="update-primary" id="updateRestart">Restart and install</button><button class="update-later" id="updateRestartLater">Later</button>');
+    document.getElementById("updateRestart").onclick = () => window.netlify.updater.install();
+    document.getElementById("updateRestartLater").onclick = () => { root.innerHTML = ""; toast("The update will install when you close Netlify MC."); };
+  });
+  window.netlify.updater.on("updater:error", error => {
+    const label = document.getElementById("updateProgressText");
+    if (label) label.textContent = "Download error: "+error.message;
+  });
+})();
