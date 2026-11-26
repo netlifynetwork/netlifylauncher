@@ -103,6 +103,7 @@ function registerMinecraftHandlers() {
     if(activeGame)return {ok:false,message:"Minecraft is already running."};
     const instance=(await readInstances()).find(x=>x.id===id);
     if(!instance)return {ok:false,message:"Instance not found."};
+    if(instance.loader!=="Vanilla")return {ok:false,message:instance.loader+" installation is not wired into the game installer yet. Choose Vanilla for a working first launch."};
     const session=await getSession();
     if(!session)return {ok:false,needsLogin:true,message:"Sign in with Microsoft first."};
     const java=spawnSync("java",["-version"],{encoding:"utf8",windowsHide:true});
