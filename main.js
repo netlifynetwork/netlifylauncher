@@ -1,6 +1,9 @@
 const { app, BrowserWindow, shell, ipcMain, safeStorage } = require("electron");
 const fs = require("fs/promises");
-const { spawnSync } = require("child_process");
+const { createWriteStream } = require("fs");
+const { Readable } = require("stream");
+const { pipeline } = require("stream/promises");
+const extractZip = require("extract-zip");
 const { randomUUID } = require("crypto");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
@@ -60,6 +63,51 @@ async function getSession() {
     return {xbox:activeXbox,minecraft:activeMinecraft};
   } catch { return null; }
 }
+
+async function findJavaExecutable(dir, depth=0) {
+  if (depth>5) return null;
+  let entries;
+  try { entries=await fs.readdir(dir,{withFileTypes:true}); } catch { return null; }
+  for (const entry of entries) {
+    const full=path.join(dir,entry.name);
+    if (entry.isFile() && entry.name.toLowerCase()==="java.exe") return full;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const found=await findJavaExecutable(path.join(dir,entry.name),depth+1);
+      if(found)return found;
+    }
+  }
+  return null;
+}
+async function ensureJavaForVersion(versionId) {
+  const manifestResponse=await fetch("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
+  if(!manifestResponse.ok)throw new Error("Could not read official Minecraft version manifest.");
+  const manifest=await manifestResponse.json();
+  const versionEntry=manifest.versions.find(v=>v.id===versionId);
+  if(!versionEntry)throw new Error("Minecraft version "+versionId+" was not found in Mojang's manifest.");
+  const metadataResponse=await fetch(versionEntry.url);
+  if(!metadataResponse.ok)throw new Error("Could not read Minecraft version metadata.");
+  const metadata=await metadataResponse.json();
+  const major=Number(metadata.javaVersion?.majorVersion||21);
+  const runtimeRoot=dataFile(path.join("java-runtime","temurin-"+major));
+  const existing=await findJavaExecutable(runtimeRoot);
+  if(existing)return existing;
+  send("minecraft:progress",{stage:"runtime",percent:0,message:"Installing Java "+major+" runtime…"});
+  await fs.mkdir(runtimeRoot,{recursive:true});
+  const archive=dataFile(path.join("java-runtime","temurin-"+major+".zip"));
+  const url="https://api.adoptium.net/v3/binary/latest/"+major+"/ga/windows/x64/jre/hotspot/normal/eclipse";
+  const response=await fetch(url,{redirect:"follow"});
+  if(!response.ok||!response.body)throw new Error("Java "+major+" runtime download failed ("+response.status+").");
+  await pipeline(Readable.fromWeb(response.body),createWriteStream(archive));
+  send("minecraft:progress",{stage:"runtime",percent:100,message:"Extracting Java "+major+" runtime…"});
+  await extractZip(archive,{dir:runtimeRoot});
+  await fs.unlink(archive).catch(()=>{});
+  const javaPath=await findJavaExecutable(runtimeRoot);
+  if(!javaPath)throw new Error("The downloaded Java runtime did not contain java.exe.");
+  return javaPath;
+}
+
 function registerMinecraftHandlers() {
   ipcMain.handle("minecraft:versions", async (_e, snapshots=false) => {
     const r=await fetch("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
@@ -106,9 +154,8 @@ function registerMinecraftHandlers() {
     if(instance.loader!=="Vanilla")return {ok:false,message:instance.loader+" installation is not wired into the game installer yet. Choose Vanilla for a working first launch."};
     const session=await getSession();
     if(!session)return {ok:false,needsLogin:true,message:"Sign in with Microsoft first."};
-    const java=spawnSync("java",["-version"],{encoding:"utf8",windowsHide:true});
-    if(java.error?.code==="ENOENT")return {ok:false,needsJava:true,message:"Java was not found. Install a compatible Java runtime and try again."};
     try {
+      const javaPath=await ensureJavaForVersion(instance.version);
       const {Client}=require("minecraft-launcher-core");
       const client=new Client();
       send("minecraft:progress",{stage:"prepare",percent:0,message:"Preparing Minecraft "+instance.version+"…"});
@@ -117,7 +164,7 @@ function registerMinecraftHandlers() {
       client.on("debug",msg=>send("minecraft:log",{message:String(msg).slice(0,800)}));
       client.on("data",msg=>send("minecraft:log",{message:String(msg).slice(0,800)}));
       client.on("close",code=>{activeGame=null;send("minecraft:closed",{code:Number(code??0)});});
-      const child=await client.launch({authorization:session.minecraft.mclc(),root:instance.gameDir,version:{number:instance.version,type:instance.versionType||"release"},memory:{min:"1G",max:"4G"}});
+      const child=await client.launch({authorization:session.minecraft.mclc(),root:instance.gameDir,version:{number:instance.version,type:instance.versionType||"release"},javaPath,memory:{min:"1G",max:"4G"}});
       activeGame=child||client;
       if(child?.once)child.once("close",code=>{activeGame=null;send("minecraft:closed",{code:Number(code??0)});});
       send("minecraft:started",{name:instance.name,version:instance.version});return {ok:true};
