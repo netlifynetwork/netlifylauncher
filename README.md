@@ -14,7 +14,7 @@ The GitHub Releases page publishes direct Windows `.exe` assets. Use **Netlify M
 - Encrypts the saved Microsoft session using Electron safeStorage when Windows encryption is available.
 - Displays download/launch status and game exit notifications.
 
-**Requirements and current limitations:** This first game-engine milestone requires a compatible 64-bit Java runtime installed on Windows and available on PATH. The Java Manager page links to Adoptium. Automatic Java runtime provisioning is not yet implemented. Vanilla is the only loader currently wired to the launch engine; Fabric, Forge, NeoForge and Quilt can be selected in the creation UI but are not installed/launched yet. Microsoft authentication, game downloads, and first launch require an internet connection and a valid Minecraft Java entitlement.
+**Requirements and current limitations:** The launcher reads the Java major version required by Mojang metadata and downloads a compatible 64-bit Eclipse Temurin runtime into its own app data folder when needed. The Java Manager page links to Adoptium for manual troubleshooting. Vanilla is the only loader currently wired to the launch engine; Fabric, Forge, NeoForge and Quilt can be selected in the creation UI but are not installed/launched yet. Microsoft authentication, game downloads, and first launch require an internet connection and a valid Minecraft Java entitlement.
 
 ## Current UI
 - Crimson-to-scarlet brand accent with dark obsidian surfaces.
