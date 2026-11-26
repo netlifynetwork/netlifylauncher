@@ -68,6 +68,7 @@
   "dependencies": {
     "electron-updater": "^6.6.2",
     "minecraft-launcher-core": "3.18.2",
-    "msmc": "5.0.5"
+    "msmc": "5.0.5",
+    "extract-zip": "2.0.1"
   }
 }
