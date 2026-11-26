@@ -22,6 +22,12 @@ function createWindow() {
     }
   });
   mainWindow.loadFile("index.html");
+  ipcMain.removeHandler("window:minimize");
+  ipcMain.removeHandler("window:maximize");
+  ipcMain.removeHandler("window:close");
+  ipcMain.handle("window:minimize", () => { mainWindow?.minimize(); return { ok: true }; });
+  ipcMain.handle("window:maximize", () => { if (mainWindow) mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize(); return { ok: true }; });
+  ipcMain.handle("window:close", () => { mainWindow?.close(); return { ok: true }; });
   mainWindow.on("closed", () => { mainWindow = null; });
 }
 
