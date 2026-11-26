@@ -163,6 +163,7 @@ function registerMinecraftHandlers() {
       client.on("download-status",p=>send("minecraft:progress",{stage:"download",percent:Number(p?.percent??p?.progress??0),message:"Downloading game files…"}));
       client.on("debug",msg=>send("minecraft:log",{message:String(msg).slice(0,800)}));
       client.on("data",msg=>send("minecraft:log",{message:String(msg).slice(0,800)}));
+      client.on("error",error=>{activeGame=null;send("minecraft:status",{stage:"error",message:error?.message||String(error)});});
       client.on("close",code=>{activeGame=null;send("minecraft:closed",{code:Number(code??0)});});
       const child=await client.launch({authorization:session.minecraft.mclc(),root:instance.gameDir,version:{number:instance.version,type:instance.versionType||"release"},javaPath,memory:{min:"1G",max:"4G"}});
       activeGame=child||client;
