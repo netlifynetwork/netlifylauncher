@@ -1,6 +1,11 @@
 const { contextBridge, shell, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("netlify", {
   openExternal: (url) => shell.openExternal(url),
+  window: {
+    minimize: () => ipcRenderer.invoke("window:minimize"),
+    maximize: () => ipcRenderer.invoke("window:maximize"),
+    close: () => ipcRenderer.invoke("window:close")
+  },
   updater: {
     check: () => ipcRenderer.invoke("updater:check"),
     download: () => ipcRenderer.invoke("updater:download"),
